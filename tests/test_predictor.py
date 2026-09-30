@@ -224,3 +224,20 @@ def test_sans_flux():
     assert s["resume"]["date_alerte"] is None
     assert all(t["esperance"] == 100.0 for t in s["timeline"])
     assert np.allclose([sum(r) for r in s["grille_densite"]["probabilites"]], 1.0)
+
+
+def test_timeline_numpy(sortie, tmp_path):
+    from predictor import timeline_numpy
+
+    t = timeline_numpy(sortie)
+    assert t.shape == (len(sortie["timeline"]),)
+    assert t["date"][0] == np.datetime64("2026-09-30")
+    assert t["date"][1] - t["date"][0] == np.timedelta64(1, "D")
+    j = int(np.argmax(t["date"] == np.datetime64("2026-10-10")))
+    assert t["p_decouvert"][j] == _jour(sortie, "2026-10-10")["p_decouvert"]
+    assert np.all(t["q05"] <= t["q95"])
+
+    npy = tmp_path / "timeline.npy"
+    code = cli_main([str(FIXTURE), "--out", str(tmp_path / "o.json"), "--npy", str(npy), "-q"])
+    assert code == 0
+    assert np.array_equal(np.load(npy, allow_pickle=False), t)

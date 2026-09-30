@@ -28,7 +28,8 @@ python -m predictor fixtures/sarah.json --solde 800 --as-of 2026-09-30 --out out
 ```
 
 Le fichier d'entrée est soit une liste de flux, soit un objet `{"flux": [...], "solde_actuel": ..., "as_of": ...}`
-(les options `--solde` / `--as-of` priment). Options : `--horizon`, `--seed`, `--n-sim`, `-q`.
+(les options `--solde` / `--as-of` priment). Options : `--horizon`, `--seed`, `--n-sim`, `-q`,
+`--npy timeline.npy` (timeline en tableau numpy, voir plus bas).
 Un tableau des flux classés et le résumé sont affichés sur stderr.
 
 ```python
@@ -47,6 +48,17 @@ Schéma d'un flux en entrée :
 `montant` = montant moyen par occurrence (le signe est donné par `recette`). `montants` est optionnel
 (≥ 3 valeurs → écart-type empirique). Les dates postérieures à `as_of` et les doublons sont ignorés
 (avec warning). Une entrée invalide lève `ValueError` (CLI : message d'erreur, code 1, pas de trace).
+
+### Timeline en tableau numpy
+
+```python
+from predictor import predict, timeline_numpy
+t = timeline_numpy(predict(flux, 800, "2026-09-30"))   # tableau structuré, une ligne par jour
+t["date"]         # datetime64[D]
+t["esperance"], t["q05"], t["q25"], t["q50"], t["q75"], t["q95"], t["p_decouvert"]
+```
+
+Depuis le CLI : `--npy timeline.npy`, puis `np.load("timeline.npy")`.
 
 ### Sortie
 

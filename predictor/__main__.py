@@ -8,7 +8,9 @@ import os
 import sys
 from dataclasses import replace
 
-from . import Params, predict
+import numpy as np
+
+from . import Params, predict, timeline_numpy
 
 MAX_TAILLE_FICHIER = 20 * 1024 * 1024
 
@@ -51,6 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--n-sim", dest="n_sim", type=int, default=None)
     ap.add_argument("--out", help="fichier de sortie (défaut : stdout)")
+    ap.add_argument("--npy", help="enregistre aussi la timeline en tableau numpy (.npy)")
     ap.add_argument("-q", "--quiet", action="store_true", help="ne pas afficher le résumé sur stderr")
     args = ap.parse_args(argv)
 
@@ -81,6 +84,8 @@ def main(argv: list[str] | None = None) -> int:
             fh.write(texte + "\n")
     else:
         print(texte)
+    if args.npy:
+        np.save(args.npy, timeline_numpy(sortie), allow_pickle=False)
     if not args.quiet:
         _afficher(sortie)
     return 0

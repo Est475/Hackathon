@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from .export import timeline_numpy
 from .flux import analyser_tous
 from .params import Params
 from .projection import projeter, renseigner_prochaines_dates
@@ -11,7 +12,7 @@ from .resume import construire_resume, fin_de_mois, trouver_remuneration
 from .schemas import SortiePrediction, valider_entree
 from .simulation import construire_grille, construire_timeline, simuler_soldes
 
-__all__ = ["predict", "Params"]
+__all__ = ["predict", "Params", "timeline_numpy"]
 
 
 def predict(flux: list[dict], solde_actuel: float, as_of: date | str,
