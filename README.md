@@ -2,6 +2,17 @@
 
 ## Chaîne complète
 
+En une commande (transactions → IA → prédiction) :
+
+```bash
+export GEMINI_API_KEY=...
+python synthese.py                                    # exemple flux.json, solde 1000 €, affiche le tableau
+python synthese.py "exemple flux.json" --solde 1200 --curseur
+python synthese.py --reutiliser --curseur             # sans rappeler l'IA (reprend flux_agreges.json)
+```
+
+Étape par étape :
+
 ```bash
 # 1. regrouper les transactions par marchand avec Gemini (clé dans l'environnement, jamais dans le code)
 export GEMINI_API_KEY=...            # ou GOOGLE_CLOUD_PROJECT + GOOGLE_ACCESS_TOKEN, voir donnees_ia.py

@@ -93,3 +93,25 @@ def test_bout_en_bout_vers_predictor(env_propre, monkeypatch):
     import predictor_standalone as ps
     t = ps.predict(flux, 500, "2026-09-30")
     assert t["p_decouvert"].max() < 0.2
+
+
+def test_synthese_une_commande(env_propre, monkeypatch, capsys):
+    import synthese
+
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    monkeypatch.setattr(donnees_ia.requests, "post",
+                        lambda *a, **k: FausseReponse(200, json.dumps(FLUX_IA)))
+    flux = env_propre / "flux.json"
+    npy = env_propre / "t.npy"
+    code = synthese.main([str(RACINE / "exemple flux.json"), "--flux", str(flux), "--npy", str(npy)])
+    assert code == 0
+    import numpy as np
+    t = np.load(npy)
+    assert str(t["date"][0]) == "2026-09-30"          # dernière transaction de l'exemple
+    assert t["esperance"][0] == 1000.0                 # solde par défaut
+    assert json.loads(flux.read_text(encoding="utf-8")) == FLUX_IA
+
+    # --reutiliser : plus aucun appel à l'IA
+    monkeypatch.setattr(donnees_ia.requests, "post", lambda *a, **k: pytest.fail("appel IA inattendu"))
+    assert synthese.main([str(RACINE / "exemple flux.json"), "--flux", str(flux), "--reutiliser"]) == 0
+    assert "2026-09-30" in capsys.readouterr().out
