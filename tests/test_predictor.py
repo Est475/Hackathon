@@ -286,5 +286,9 @@ def test_curseur_temporel(donnees):
     fig, slider = ps.figure_curseur(t, B)
     slider.set_val(10)
     assert slider.valtext.get_text() == "2026-10-10"
-    assert "2026-10-10" in [c.get_text().get_text() for c in fig.axes[1].tables[0].get_celld().values()]
+    tableau = next(ax.tables[0] for ax in fig.axes if ax.tables)
+    assert "10/10" in [c.get_text().get_text() for c in tableau.get_celld().values()]
+    textes = [txt.get_text() for ax in fig.axes for txt in ax.texts]
+    assert any("Le 10/10 : 86 % de risque" in x for x in textes)
+    assert "86 % à découvert" in textes
     plt.close(fig)
