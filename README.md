@@ -37,6 +37,13 @@ python synthese.py --npy timeline.npy                 # enregistre le tableau nu
 
 Date de référence par défaut : la dernière transaction (`--as-of` pour la changer).
 
+Sans clé : `fixtures/exemple_flux_agreges.json` est le résultat de l'IA sur `exemple flux.json` (98
+transactions → 17 flux), directement utilisable :
+
+```bash
+python predictor_standalone.py fixtures/exemple_flux_agreges.json --solde 1000 --as-of 2026-09-30 --curseur
+```
+
 ## Prédiction seule (sans IA)
 
 ```bash
