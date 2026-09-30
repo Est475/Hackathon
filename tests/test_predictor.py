@@ -260,3 +260,16 @@ def test_standalone_identique_au_package(donnees, sortie, tmp_path):
     assert np.array_equal(np.load(npy, allow_pickle=False), t)
     with pytest.raises(ValueError):
         ps.predict([{"montant": float("nan"), "dates_apparition": ["2026-01-01"]}], 800, "2026-09-30")
+
+
+def test_dates_avec_heure_acceptees():
+    """L'amont fournit des date-heures ISO (fixtures/donnees_test.json) : l'heure est ignorée."""
+    import predictor_standalone as ps
+
+    fichier = FIXTURE.parent / "donnees_test.json"
+    flux = json.loads(fichier.read_text(encoding="utf-8"))
+    s = predict(flux, 500, "2026-09-30")
+    assert _flux(s, "F001")["prochaine_date"] == "2026-10-01"
+    assert _flux(s, "F009")["changement"]["principal"] == "evenement_ponctuel"
+    assert any("F010" in w and "double" in w for w in s["warnings"])
+    assert ps.predict(flux, 500, "2026-09-30").shape == (len(s["timeline"]),)

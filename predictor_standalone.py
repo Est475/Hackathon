@@ -67,14 +67,17 @@ MAX_FLUX, MAX_DATES, MAX_MONTANT, MAX_SOLDE = 2000, 1000, 1e7, 1e9
 
 
 def _parse_date_iso(v: object) -> date:
-    if isinstance(v, date) and not isinstance(v, datetime):
+    """Date ISO « AAAA-MM-JJ » ou date-heure ISO « AAAA-MM-JJTHH:MM[:SS] » (l'heure est ignorée)."""
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
         return v
-    if isinstance(v, str) and len(v) <= 10:
+    if isinstance(v, str) and len(v) <= 32:
         try:
-            return date.fromisoformat(v)
+            return date.fromisoformat(v) if len(v) <= 10 else datetime.fromisoformat(v).date()
         except ValueError:
             pass
-    raise ValueError("date ISO attendue (AAAA-MM-JJ)")
+    raise ValueError("date ISO attendue (AAAA-MM-JJ ou AAAA-MM-JJTHH:MM:SS)")
 
 
 DateISO = Annotated[date, BeforeValidator(_parse_date_iso)]
