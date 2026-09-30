@@ -15,6 +15,7 @@ En Python :
     from predictor_standalone import predict
     t = predict(flux, 800, "2026-09-30")
     t["date"], t["esperance"], t["p_decouvert"]
+    t, B = predict_scenarios(flux, 800, "2026-09-30")   # + les 5000 soldes simulés
 
 Dépendances : numpy, python-dateutil, pydantic v2 (+ matplotlib pour --curseur).
 """
@@ -299,9 +300,9 @@ DTYPE_TIMELINE = np.dtype([("date", "datetime64[D]"), ("esperance", "f8"), ("q05
                            ("q50", "f8"), ("q75", "f8"), ("q95", "f8"), ("p_decouvert", "f8")])
 
 
-def predict(flux: list[dict], solde_actuel: float, as_of: date | str,
-            horizon_jours: int = 45, params: Params | None = None) -> np.ndarray:
-    """Timeline du solde : tableau numpy structuré (DTYPE_TIMELINE), une ligne par jour depuis as_of."""
+def predict_scenarios(flux: list[dict], solde_actuel: float, as_of: date | str,
+                      horizon_jours: int = 45, params: Params | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """Comme predict(), mais renvoie aussi les soldes simulés B, forme (n_sim, nb_jours)."""
     params = params or Params()
     e = valider(flux, solde_actuel, as_of, horizon_jours)
     analyses = [fl for f in e.flux if (fl := analyser(f, e.as_of, params)) is not None]
@@ -315,24 +316,52 @@ def predict(flux: list[dict], solde_actuel: float, as_of: date | str,
                       np.quantile(B, [0.05, 0.25, 0.5, 0.75, 0.95], axis=0)):
         t[nom] = q
     t["p_decouvert"] = (B < 0).mean(axis=0)
-    return t
+    return t, B
+
+
+def predict(flux: list[dict], solde_actuel: float, as_of: date | str,
+            horizon_jours: int = 45, params: Params | None = None) -> np.ndarray:
+    """Timeline du solde : tableau numpy structuré (DTYPE_TIMELINE), une ligne par jour depuis as_of."""
+    return predict_scenarios(flux, solde_actuel, as_of, horizon_jours, params)[0]
 
 
 # =========================================================================== visualisation (--curseur)
 
 COULEUR_SERIE = "#2a78d6"
+COULEUR_RISQUE = "#d03b3b"
 COULEUR_TEXTE = "#0b0b0b"
 COULEUR_TEXTE_2 = "#52514e"
 COULEUR_GRILLE = "#e4e3df"
 COULEUR_FOND = "#fcfcfb"
 COULEUR_SELECTION = "#dcebfb"
-LIGNES_TABLEAU = 9
+LIGNES_TABLEAU = 5
+SEUIL_ALERTE = 0.20
+
+ENTETES_TABLEAU = ["date", "solde moyen", "pessimiste\n(5 %)", "bas\n(25 %)", "le plus probable\n(médiane)",
+                   "haut\n(75 %)", "optimiste\n(95 %)", "risque de\ndécouvert"]
 
 
-def figure_curseur(t: np.ndarray, titre: str = "Solde prévu"):
-    """Figure matplotlib : courbe du solde, tableau numpy autour du jour choisi, curseur temporel.
+def _euros(x: float) -> str:
+    return f"{x:,.0f} €".replace(",", " ")
 
-    Renvoie (fig, slider) ; déplacer le curseur (ou ← / →) met à jour le tableau et le repère.
+
+def _styler_axe(ax) -> None:
+    ax.set_facecolor(COULEUR_FOND)
+    for cote in ("top", "right"):
+        ax.spines[cote].set_visible(False)
+    for cote in ("left", "bottom"):
+        ax.spines[cote].set_color(COULEUR_GRILLE)
+    ax.tick_params(colors=COULEUR_TEXTE_2, labelsize=8)
+
+
+def figure_curseur(t: np.ndarray, B: np.ndarray | None = None, titre: str = "Solde prévu"):
+    """Figure matplotlib pour lire les probabilités jour par jour, avec un curseur temporel.
+
+    - courbe du solde : valeur la plus probable + zones « 1 chance sur 2 » et « 9 chances sur 10 » ;
+    - si B (scénarios simulés) est fourni : répartition des scénarios le jour choisi, partie à découvert en rouge ;
+    - risque de découvert jour par jour (%), avec le seuil d'alerte ;
+    - phrase de synthèse + tableau numpy autour du jour choisi ;
+    - curseur en dessous (ou ← / →). Renvoie (fig, slider).
     """
     import matplotlib.pyplot as plt
     from matplotlib.widgets import Slider
@@ -340,63 +369,106 @@ def figure_curseur(t: np.ndarray, titre: str = "Solde prévu"):
     n = len(t)
     x = np.arange(n)
     dates = [str(d) for d in t["date"]]
+    jj_mm = [f"{d[8:10]}/{d[5:7]}" for d in dates]
+    risque = 100 * t["p_decouvert"]
 
-    fig = plt.figure(figsize=(11, 7.2), facecolor=COULEUR_FOND)
-    ax = fig.add_axes([0.08, 0.58, 0.88, 0.36], facecolor=COULEUR_FOND)
-    ax_tab = fig.add_axes([0.03, 0.10, 0.94, 0.41])
-    ax_tab.axis("off")
-    ax_cur = fig.add_axes([0.14, 0.035, 0.70, 0.035], facecolor=COULEUR_GRILLE)
+    fig = plt.figure(figsize=(12, 8.8), facecolor=COULEUR_FOND)
+    fig.suptitle(titre, x=0.06, ha="left", y=0.975, color=COULEUR_TEXTE, fontsize=13, fontweight="bold")
+    large = 0.60 if B is not None else 0.89
+    ax = fig.add_axes([0.07, 0.61, large, 0.32])
+    ax_r = fig.add_axes([0.07, 0.43, large, 0.13], sharex=ax)
+    ax_h = fig.add_axes([0.72, 0.61, 0.25, 0.32], sharey=ax) if B is not None else None
+    ax_txt = fig.add_axes([0.03, 0.315, 0.94, 0.06])
+    ax_tab = fig.add_axes([0.03, 0.10, 0.94, 0.21])
+    ax_cur = fig.add_axes([0.14, 0.045, 0.70, 0.03], facecolor=COULEUR_GRILLE)
+    for a in (ax_txt, ax_tab):
+        a.axis("off")
 
-    # --- courbe : bandes de quantiles + médiane, une seule teinte
-    ax.fill_between(x, t["q05"], t["q95"], color=COULEUR_SERIE, alpha=0.15, lw=0, label="90 % des scénarios")
-    ax.fill_between(x, t["q25"], t["q75"], color=COULEUR_SERIE, alpha=0.30, lw=0, label="50 % des scénarios")
-    ax.plot(x, t["q50"], color=COULEUR_SERIE, lw=2, label="médiane")
-    ax.axhline(0, color=COULEUR_TEXTE_2, lw=1, ls="--")
-    ax.text(n - 1, 0, " découvert", va="bottom", ha="right", color=COULEUR_TEXTE_2, fontsize=8)
-    ax.set_title(titre, loc="left", color=COULEUR_TEXTE, fontsize=12, fontweight="bold")
-    ax.set_ylabel("€", color=COULEUR_TEXTE_2)
-    pas_x = max(1, n // 8)
-    ax.set_xticks(x[::pas_x], [d[5:] for d in dates[::pas_x]])
-    ax.set_xlim(0, n - 1)
+    # --- 1. courbe du solde
+    _styler_axe(ax)
+    ax.fill_between(x, t["q05"], t["q95"], color=COULEUR_SERIE, alpha=0.13, lw=0,
+                    label="9 chances sur 10 que le solde soit dans cette zone")
+    ax.fill_between(x, t["q25"], t["q75"], color=COULEUR_SERIE, alpha=0.30, lw=0,
+                    label="1 chance sur 2 que le solde soit dans cette zone")
+    ax.plot(x, t["q50"], color=COULEUR_SERIE, lw=2, label="solde le plus probable")
+    ax.axhline(0, color=COULEUR_RISQUE, lw=1, ls="--", label="0 € : en dessous, découvert")
+    ax.set_title("Solde du compte (€)", loc="left", color=COULEUR_TEXTE, fontsize=10)
     ax.grid(axis="y", color=COULEUR_GRILLE, lw=0.8)
-    for cote in ("top", "right"):
-        ax.spines[cote].set_visible(False)
-    for cote in ("left", "bottom"):
-        ax.spines[cote].set_color(COULEUR_GRILLE)
-    ax.tick_params(colors=COULEUR_TEXTE_2, labelsize=8)
     ax.legend(loc="upper left", frameon=False, fontsize=8, labelcolor=COULEUR_TEXTE_2)
+    ax.tick_params(labelbottom=False)
     repere = ax.axvline(0, color=COULEUR_TEXTE, lw=1)
-    point, = ax.plot([0], [t["q50"][0]], "o", ms=8, color=COULEUR_SERIE, mec=COULEUR_FOND, mew=2)
+    point, = ax.plot([0], [t["q50"][0]], "o", ms=8, color=COULEUR_SERIE, mec=COULEUR_FOND, mew=2, zorder=5)
 
-    entetes = ["date", "espérance", "q05", "q25", "q50", "q75", "q95", "P(découvert)"]
+    # --- 2. risque de découvert jour par jour
+    _styler_axe(ax_r)
+    couleurs_r = [COULEUR_RISQUE if r >= 100 * SEUIL_ALERTE else "#b9b8b2" for r in risque]
+    ax_r.bar(x, risque, width=0.8, color=couleurs_r)
+    ax_r.axhline(100 * SEUIL_ALERTE, color=COULEUR_TEXTE_2, lw=1, ls=":")
+    ax_r.text(n - 0.5, 100 * SEUIL_ALERTE, f"seuil d'alerte {100 * SEUIL_ALERTE:.0f} %", ha="right",
+              va="bottom", fontsize=7, color=COULEUR_TEXTE_2)
+    ax_r.set_ylim(0, 100)
+    ax_r.set_yticks([0, 50, 100], ["0 %", "50 %", "100 %"])
+    ax_r.set_title("Risque d'être à découvert ce jour-là", loc="left", color=COULEUR_TEXTE, fontsize=10)
+    ax_r.grid(axis="y", color=COULEUR_GRILLE, lw=0.8)
+    pas_x = max(1, n // 9)
+    ax_r.set_xticks(x[::pas_x], jj_mm[::pas_x])
+    ax_r.set_xlim(-0.5, n - 0.5)
+    repere_r = ax_r.axvline(0, color=COULEUR_TEXTE, lw=1)
 
-    def lignes(j: int) -> tuple[list[list[str]], int]:
-        debut = min(max(j - LIGNES_TABLEAU // 2, 0), max(n - LIGNES_TABLEAU, 0))
-        rows = []
-        for r in t[debut:debut + LIGNES_TABLEAU]:
-            rows.append([str(r["date"])] + [f"{r[c]:,.2f}".replace(",", " ")
-                                            for c in ("esperance", "q05", "q25", "q50", "q75", "q95")]
-                        + [f"{100 * r['p_decouvert']:.1f} %"])
-        return rows, j - debut
+    # --- 3. répartition des scénarios le jour choisi
+    barres = centres = None
+    if ax_h is not None:
+        _styler_axe(ax_h)
+        lo = float(np.quantile(B, 0.01, axis=0).min())
+        hi = float(np.quantile(B, 0.99, axis=0).max())
+        if hi - lo < 1e-9:
+            lo, hi = lo - 1, hi + 1
+        bornes = np.linspace(lo, hi, 41)
+        centres = (bornes[:-1] + bornes[1:]) / 2
+        couleurs_h = [COULEUR_RISQUE if c < 0 else COULEUR_SERIE for c in centres]
+        barres = ax_h.barh(centres, np.zeros_like(centres), height=(bornes[1] - bornes[0]) * 0.85,
+                           color=couleurs_h)
+        ax_h.axhline(0, color=COULEUR_RISQUE, lw=1, ls="--")
+        ax_h.set_xlabel("% des scénarios", color=COULEUR_TEXTE_2, fontsize=8)
+        ax_h.tick_params(labelleft=False)
+        ax_h.grid(axis="x", color=COULEUR_GRILLE, lw=0.8)
+        titre_h = ax_h.set_title("", loc="left", color=COULEUR_TEXTE, fontsize=10)
+        txt_pos = ax_h.text(0.97, 0.97, "", transform=ax_h.transAxes, ha="right", va="top",
+                            color=COULEUR_SERIE, fontsize=9, fontweight="bold")
+        txt_neg = ax_h.text(0.97, 0.03, "", transform=ax_h.transAxes, ha="right", va="bottom",
+                            color=COULEUR_RISQUE, fontsize=9, fontweight="bold")
+
+    # --- 4. synthèse en clair
+    txt_risque = ax_txt.text(0.0, 0.62, "", fontsize=13, fontweight="bold", va="center")
+    txt_detail = ax_txt.text(0.0, 0.05, "", fontsize=10, color=COULEUR_TEXTE_2, va="center")
 
     def dessiner_tableau(j: int) -> None:
         ax_tab.clear()
         ax_tab.axis("off")
-        rows, sel = lignes(j)
-        tab = ax_tab.table(cellText=rows, colLabels=entetes, loc="upper center", cellLoc="right")
+        debut = min(max(j - LIGNES_TABLEAU // 2, 0), max(n - LIGNES_TABLEAU, 0))
+        rows = [[jj_mm[debut + i]] + [_euros(r[c]) for c in ("esperance", "q05", "q25", "q50", "q75", "q95")]
+                + [f"{100 * r['p_decouvert']:.0f} %"] for i, r in enumerate(t[debut:debut + LIGNES_TABLEAU])]
+        tab = ax_tab.table(cellText=rows, colLabels=ENTETES_TABLEAU, loc="upper center", cellLoc="right")
         tab.auto_set_font_size(False)
         tab.set_fontsize(9)
-        tab.scale(1, 1.55)
-        for (i, _c), cell in tab.get_celld().items():
+        tab.scale(1, 1.6)
+        for (i, c), cell in tab.get_celld().items():
             cell.set_edgecolor(COULEUR_GRILLE)
             cell.set_facecolor(COULEUR_FOND)
-            cell.get_text().set_color(COULEUR_TEXTE)
+            txt = cell.get_text()
+            txt.set_color(COULEUR_TEXTE)
             if i == 0:
-                cell.get_text().set_color(COULEUR_TEXTE_2)
-                cell.get_text().set_fontweight("bold")
-            elif i - 1 == sel:
-                cell.set_facecolor(COULEUR_SELECTION)
-                cell.get_text().set_fontweight("bold")
+                cell.set_height(cell.get_height() * 1.6)
+                txt.set_color(COULEUR_TEXTE_2)
+                txt.set_fontweight("bold")
+                txt.set_fontsize(8)
+            else:
+                if i - 1 == j - debut:
+                    cell.set_facecolor(COULEUR_SELECTION)
+                    txt.set_fontweight("bold")
+                if c == len(ENTETES_TABLEAU) - 1 and rows[i - 1][c] != "0 %" \
+                        and t["p_decouvert"][debut + i - 1] >= SEUIL_ALERTE:
+                    txt.set_color(COULEUR_RISQUE)
 
     slider = Slider(ax_cur, "jour", 0, n - 1, valinit=0, valstep=1, color=COULEUR_SERIE)
     slider.label.set_color(COULEUR_TEXTE_2)
@@ -404,9 +476,32 @@ def figure_curseur(t: np.ndarray, titre: str = "Solde prévu"):
 
     def maj(_val=None) -> None:
         j = int(slider.val)
-        repere.set_xdata([j, j])
-        point.set_data([j], [t["q50"][j]])
+        r = t[j]
+        for rep in (repere, repere_r):
+            rep.set_xdata([j, j])
+        point.set_data([j], [r["q50"]])
         slider.valtext.set_text(dates[j])
+
+        p = r["p_decouvert"]
+        sur_100 = int(round(100 * p))
+        alerte = p >= SEUIL_ALERTE
+        txt_risque.set_text(f"Le {jj_mm[j]} : {sur_100} % de risque d'être à découvert"
+                            f"  ({sur_100} scénarios sur 100){'  ⚠ alerte' if alerte else ''}")
+        txt_risque.set_color(COULEUR_RISQUE if alerte else COULEUR_TEXTE)
+        txt_detail.set_text(f"Solde le plus probable : {_euros(r['q50'])}  ·  "
+                            f"1 chance sur 2 entre {_euros(r['q25'])} et {_euros(r['q75'])}  ·  "
+                            f"9 chances sur 10 entre {_euros(r['q05'])} et {_euros(r['q95'])}")
+
+        if barres is not None:
+            counts, _ = np.histogram(np.clip(B[:, j], bornes[0], bornes[-1]), bins=bornes)
+            pct = 100 * counts / B.shape[0]
+            for b, w in zip(barres, pct):
+                b.set_width(w)
+            ax_h.set_xlim(0, max(pct.max() * 1.15, 1))
+            titre_h.set_text(f"Les {B.shape[0]} scénarios le {jj_mm[j]}")
+            txt_pos.set_text(f"{100 * (1 - p):.0f} % au-dessus de 0 €")
+            txt_neg.set_text(f"{100 * p:.0f} % à découvert")
+
         dessiner_tableau(j)
         fig.canvas.draw_idle()
 
@@ -420,10 +515,10 @@ def figure_curseur(t: np.ndarray, titre: str = "Solde prévu"):
     return fig, slider
 
 
-def afficher_curseur(t: np.ndarray, titre: str = "Solde prévu") -> None:
+def afficher_curseur(t: np.ndarray, B: np.ndarray | None = None, titre: str = "Solde prévu") -> None:
     import matplotlib.pyplot as plt
 
-    fig, slider = figure_curseur(t, titre)
+    fig, slider = figure_curseur(t, B, titre)
     fig._slider = slider  # garde une référence, sinon le curseur ne répond plus
     plt.show()
 
@@ -454,7 +549,7 @@ def main(argv: list[str] | None = None) -> int:
         if solde is None or as_of is None:
             raise ValueError("--solde et --as-of sont requis (ou solde_actuel / as_of dans le fichier)")
         params = Params() if args.seed is None else replace(Params(), seed=args.seed)
-        t = predict(flux, solde, as_of, args.horizon or meta.get("horizon_jours", 45), params)
+        t, B = predict_scenarios(flux, solde, as_of, args.horizon or meta.get("horizon_jours", 45), params)
     except (ValueError, OSError) as err:
         print(f"erreur : {err}", file=sys.stderr)
         return 1
@@ -467,7 +562,7 @@ def main(argv: list[str] | None = None) -> int:
         except ImportError:
             print("erreur : --curseur nécessite matplotlib (pip install matplotlib)", file=sys.stderr)
             return 1
-        afficher_curseur(t, f"Solde prévu — {os.path.basename(args.entree)}")
+        afficher_curseur(t, B, f"Solde prévu — {os.path.basename(args.entree)}")
     elif not args.out:
         print(f"{'date':10} " + " ".join(f"{c:>10}" for c in t.dtype.names[1:]))
         for ligne in t:

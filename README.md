@@ -71,9 +71,14 @@ python predictor_standalone.py fixtures/sarah.json --out timeline.npy  # l'enreg
 python predictor_standalone.py fixtures/sarah.json --curseur            # fenêtre avec curseur temporel
 ```
 
-`--curseur` (nécessite matplotlib) ouvre une fenêtre : courbe du solde (médiane, 50 % et 90 % des
-scénarios), le tableau numpy autour du jour sélectionné, et un curseur en dessous pour se déplacer
-dans le temps (flèches ← / → aussi).
+`--curseur` (nécessite matplotlib) ouvre une fenêtre pour lire les probabilités, avec un curseur
+en dessous pour se déplacer dans le temps (flèches ← / → aussi) :
+- le solde le plus probable et les zones « 1 chance sur 2 » / « 9 chances sur 10 » ;
+- la répartition des 5000 scénarios le jour choisi (en rouge : ceux à découvert) ;
+- le risque de découvert jour par jour, avec le seuil d'alerte de 20 % ;
+- une phrase de synthèse et le tableau numpy autour du jour choisi.
+
+`predict_scenarios()` renvoie en plus du tableau les soldes simulés (matrice scénarios × jours).
 
 ```python
 from predictor_standalone import predict

@@ -282,7 +282,8 @@ def test_curseur_temporel(donnees):
     import predictor_standalone as ps
 
     t = ps.predict(donnees["flux"], donnees["solde_actuel"], donnees["as_of"])
-    fig, slider = ps.figure_curseur(t)
+    t, B = ps.predict_scenarios(donnees["flux"], donnees["solde_actuel"], donnees["as_of"])
+    fig, slider = ps.figure_curseur(t, B)
     slider.set_val(10)
     assert slider.valtext.get_text() == "2026-10-10"
     assert "2026-10-10" in [c.get_text().get_text() for c in fig.axes[1].tables[0].get_celld().values()]
