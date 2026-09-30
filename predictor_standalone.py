@@ -1,7 +1,8 @@
-"""Prédiction du solde — version autonome en un seul fichier.
+"""Prédiction du solde en un seul fichier.
 
-Même modèle que le package `predictor/` (étapes A–C, projection, Monte Carlo), mais la seule
-sortie est la timeline du solde sous forme de tableau numpy structuré, une ligne par jour :
+Qualifie chaque flux (périodique / variable / ponctuel, habitude active ou éteinte), projette les
+occurrences futures et simule le solde par Monte Carlo. La sortie est la timeline du solde sous forme
+de tableau numpy structuré, une ligne par jour :
 
     date (datetime64[D]), esperance, q05, q25, q50, q75, q95, p_decouvert
 
