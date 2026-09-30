@@ -1,0 +1,113 @@
+{
+  "as_of": "2026-09-30",
+  "solde_actuel": 800.0,
+  "flux": [
+    {
+      "categorie": "salaire",
+      "marchand": "ACME SA",
+      "montant": 2500.0,
+      "charge_fixe": true,
+      "recette": true,
+      "premiere_apparition": "2026-05-28",
+      "derniere_apparition": "2026-09-28",
+      "dates_apparition": [
+        "2026-05-28",
+        "2026-06-27",
+        "2026-07-28",
+        "2026-08-28",
+        "2026-09-28"
+      ]
+    },
+    {
+      "categorie": "logement",
+      "marchand": "Immo Liège",
+      "montant": 850.0,
+      "charge_fixe": true,
+      "recette": false,
+      "premiere_apparition": "2026-04-01",
+      "derniere_apparition": "2026-08-01",
+      "dates_apparition": [
+        "2026-04-01",
+        "2026-05-01",
+        "2026-06-01",
+        "2026-07-01",
+        "2026-08-01"
+      ]
+    },
+    {
+      "categorie": "logement",
+      "marchand": "Agence Namur",
+      "montant": 950.0,
+      "charge_fixe": true,
+      "recette": false,
+      "premiere_apparition": "2026-08-05",
+      "derniere_apparition": "2026-09-05",
+      "dates_apparition": [
+        "2026-08-05",
+        "2026-09-05"
+      ]
+    },
+    {
+      "categorie": "logement",
+      "marchand": "Déménagements Dupont",
+      "montant": 620.0,
+      "charge_fixe": false,
+      "recette": false,
+      "premiere_apparition": "2026-08-03",
+      "derniere_apparition": "2026-08-03",
+      "dates_apparition": [
+        "2026-08-03"
+      ]
+    },
+    {
+      "categorie": "alimentation",
+      "marchand": "Delhaize",
+      "montant": 58.0,
+      "charge_fixe": false,
+      "recette": false,
+      "premiere_apparition": "2026-07-02",
+      "derniere_apparition": "2026-09-29",
+      "dates_apparition": [
+        "2026-07-02",
+        "2026-07-05",
+        "2026-07-11",
+        "2026-07-14",
+        "2026-07-16",
+        "2026-07-21",
+        "2026-07-26",
+        "2026-07-28",
+        "2026-08-02",
+        "2026-08-06",
+        "2026-08-08",
+        "2026-08-13",
+        "2026-08-18",
+        "2026-08-21",
+        "2026-08-23",
+        "2026-08-29",
+        "2026-09-03",
+        "2026-09-05",
+        "2026-09-10",
+        "2026-09-16",
+        "2026-09-18",
+        "2026-09-22",
+        "2026-09-27",
+        "2026-09-29"
+      ]
+    },
+    {
+      "categorie": "loisirs",
+      "marchand": "Netflix",
+      "montant": 13.99,
+      "charge_fixe": true,
+      "recette": false,
+      "premiere_apparition": "2026-06-15",
+      "derniere_apparition": "2026-09-15",
+      "dates_apparition": [
+        "2026-06-15",
+        "2026-07-15",
+        "2026-08-15",
+        "2026-09-15"
+      ]
+    }
+  ]
+}
