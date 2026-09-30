@@ -68,7 +68,12 @@ par exemple) ; sa seule sortie est la timeline en tableau numpy.
 ```bash
 python predictor_standalone.py fixtures/sarah.json                     # affiche le tableau
 python predictor_standalone.py fixtures/sarah.json --out timeline.npy  # l'enregistre
+python predictor_standalone.py fixtures/sarah.json --curseur            # fenêtre avec curseur temporel
 ```
+
+`--curseur` (nécessite matplotlib) ouvre une fenêtre : courbe du solde (médiane, 50 % et 90 % des
+scénarios), le tableau numpy autour du jour sélectionné, et un curseur en dessous pour se déplacer
+dans le temps (flèches ← / → aussi).
 
 ```python
 from predictor_standalone import predict

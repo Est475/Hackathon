@@ -9,13 +9,14 @@ Usage :
     python predictor_standalone.py fixtures/sarah.json                       # affiche le tableau
     python predictor_standalone.py fixtures/sarah.json --out timeline.npy    # l'enregistre
     python predictor_standalone.py flux.json --solde 800 --as-of 2026-09-30
+    python predictor_standalone.py fixtures/sarah.json --curseur             # tableau + curseur temporel
 
 En Python :
     from predictor_standalone import predict
     t = predict(flux, 800, "2026-09-30")
     t["date"], t["esperance"], t["p_decouvert"]
 
-Dépendances : numpy, python-dateutil, pydantic v2.
+Dépendances : numpy, python-dateutil, pydantic v2 (+ matplotlib pour --curseur).
 """
 
 from __future__ import annotations
@@ -317,6 +318,116 @@ def predict(flux: list[dict], solde_actuel: float, as_of: date | str,
     return t
 
 
+# =========================================================================== visualisation (--curseur)
+
+COULEUR_SERIE = "#2a78d6"
+COULEUR_TEXTE = "#0b0b0b"
+COULEUR_TEXTE_2 = "#52514e"
+COULEUR_GRILLE = "#e4e3df"
+COULEUR_FOND = "#fcfcfb"
+COULEUR_SELECTION = "#dcebfb"
+LIGNES_TABLEAU = 9
+
+
+def figure_curseur(t: np.ndarray, titre: str = "Solde prévu"):
+    """Figure matplotlib : courbe du solde, tableau numpy autour du jour choisi, curseur temporel.
+
+    Renvoie (fig, slider) ; déplacer le curseur (ou ← / →) met à jour le tableau et le repère.
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.widgets import Slider
+
+    n = len(t)
+    x = np.arange(n)
+    dates = [str(d) for d in t["date"]]
+
+    fig = plt.figure(figsize=(11, 7.2), facecolor=COULEUR_FOND)
+    ax = fig.add_axes([0.08, 0.58, 0.88, 0.36], facecolor=COULEUR_FOND)
+    ax_tab = fig.add_axes([0.03, 0.10, 0.94, 0.41])
+    ax_tab.axis("off")
+    ax_cur = fig.add_axes([0.14, 0.035, 0.70, 0.035], facecolor=COULEUR_GRILLE)
+
+    # --- courbe : bandes de quantiles + médiane, une seule teinte
+    ax.fill_between(x, t["q05"], t["q95"], color=COULEUR_SERIE, alpha=0.15, lw=0, label="90 % des scénarios")
+    ax.fill_between(x, t["q25"], t["q75"], color=COULEUR_SERIE, alpha=0.30, lw=0, label="50 % des scénarios")
+    ax.plot(x, t["q50"], color=COULEUR_SERIE, lw=2, label="médiane")
+    ax.axhline(0, color=COULEUR_TEXTE_2, lw=1, ls="--")
+    ax.text(n - 1, 0, " découvert", va="bottom", ha="right", color=COULEUR_TEXTE_2, fontsize=8)
+    ax.set_title(titre, loc="left", color=COULEUR_TEXTE, fontsize=12, fontweight="bold")
+    ax.set_ylabel("€", color=COULEUR_TEXTE_2)
+    pas_x = max(1, n // 8)
+    ax.set_xticks(x[::pas_x], [d[5:] for d in dates[::pas_x]])
+    ax.set_xlim(0, n - 1)
+    ax.grid(axis="y", color=COULEUR_GRILLE, lw=0.8)
+    for cote in ("top", "right"):
+        ax.spines[cote].set_visible(False)
+    for cote in ("left", "bottom"):
+        ax.spines[cote].set_color(COULEUR_GRILLE)
+    ax.tick_params(colors=COULEUR_TEXTE_2, labelsize=8)
+    ax.legend(loc="upper left", frameon=False, fontsize=8, labelcolor=COULEUR_TEXTE_2)
+    repere = ax.axvline(0, color=COULEUR_TEXTE, lw=1)
+    point, = ax.plot([0], [t["q50"][0]], "o", ms=8, color=COULEUR_SERIE, mec=COULEUR_FOND, mew=2)
+
+    entetes = ["date", "espérance", "q05", "q25", "q50", "q75", "q95", "P(découvert)"]
+
+    def lignes(j: int) -> tuple[list[list[str]], int]:
+        debut = min(max(j - LIGNES_TABLEAU // 2, 0), max(n - LIGNES_TABLEAU, 0))
+        rows = []
+        for r in t[debut:debut + LIGNES_TABLEAU]:
+            rows.append([str(r["date"])] + [f"{r[c]:,.2f}".replace(",", " ")
+                                            for c in ("esperance", "q05", "q25", "q50", "q75", "q95")]
+                        + [f"{100 * r['p_decouvert']:.1f} %"])
+        return rows, j - debut
+
+    def dessiner_tableau(j: int) -> None:
+        ax_tab.clear()
+        ax_tab.axis("off")
+        rows, sel = lignes(j)
+        tab = ax_tab.table(cellText=rows, colLabels=entetes, loc="upper center", cellLoc="right")
+        tab.auto_set_font_size(False)
+        tab.set_fontsize(9)
+        tab.scale(1, 1.55)
+        for (i, _c), cell in tab.get_celld().items():
+            cell.set_edgecolor(COULEUR_GRILLE)
+            cell.set_facecolor(COULEUR_FOND)
+            cell.get_text().set_color(COULEUR_TEXTE)
+            if i == 0:
+                cell.get_text().set_color(COULEUR_TEXTE_2)
+                cell.get_text().set_fontweight("bold")
+            elif i - 1 == sel:
+                cell.set_facecolor(COULEUR_SELECTION)
+                cell.get_text().set_fontweight("bold")
+
+    slider = Slider(ax_cur, "jour", 0, n - 1, valinit=0, valstep=1, color=COULEUR_SERIE)
+    slider.label.set_color(COULEUR_TEXTE_2)
+    slider.valtext.set_color(COULEUR_TEXTE)
+
+    def maj(_val=None) -> None:
+        j = int(slider.val)
+        repere.set_xdata([j, j])
+        point.set_data([j], [t["q50"][j]])
+        slider.valtext.set_text(dates[j])
+        dessiner_tableau(j)
+        fig.canvas.draw_idle()
+
+    def clavier(ev) -> None:
+        if ev.key in ("right", "left"):
+            slider.set_val(min(max(int(slider.val) + (1 if ev.key == "right" else -1), 0), n - 1))
+
+    slider.on_changed(maj)
+    fig.canvas.mpl_connect("key_press_event", clavier)
+    maj()
+    return fig, slider
+
+
+def afficher_curseur(t: np.ndarray, titre: str = "Solde prévu") -> None:
+    import matplotlib.pyplot as plt
+
+    fig, slider = figure_curseur(t, titre)
+    fig._slider = slider  # garde une référence, sinon le curseur ne répond plus
+    plt.show()
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Timeline du solde prévu (tableau numpy).")
     ap.add_argument("entree", help="JSON : liste de flux, ou objet {flux, solde_actuel?, as_of?}")
@@ -325,6 +436,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--horizon", type=int, help="horizon en jours (défaut 45)")
     ap.add_argument("--seed", type=int)
     ap.add_argument("--out", help="enregistre le tableau en .npy (sinon l'affiche)")
+    ap.add_argument("--curseur", action="store_true",
+                    help="ouvre une fenêtre : courbe + tableau + curseur temporel (matplotlib)")
     args = ap.parse_args(argv)
     try:
         if os.path.getsize(args.entree) > 20 * 1024 * 1024:
@@ -348,7 +461,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.out:
         np.save(args.out, t, allow_pickle=False)
-    else:
+    if args.curseur:
+        try:
+            import matplotlib  # noqa: F401
+        except ImportError:
+            print("erreur : --curseur nécessite matplotlib (pip install matplotlib)", file=sys.stderr)
+            return 1
+        afficher_curseur(t, f"Solde prévu — {os.path.basename(args.entree)}")
+    elif not args.out:
         print(f"{'date':10} " + " ".join(f"{c:>10}" for c in t.dtype.names[1:]))
         for ligne in t:
             print(f"{str(ligne['date']):10} " + " ".join(f"{ligne[c]:10.2f}" for c in t.dtype.names[1:]))

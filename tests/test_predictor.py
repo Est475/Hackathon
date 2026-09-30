@@ -273,3 +273,17 @@ def test_dates_avec_heure_acceptees():
     assert _flux(s, "F009")["changement"]["principal"] == "evenement_ponctuel"
     assert any("F010" in w and "double" in w for w in s["warnings"])
     assert ps.predict(flux, 500, "2026-09-30").shape == (len(s["timeline"]),)
+
+
+def test_curseur_temporel(donnees):
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import predictor_standalone as ps
+
+    t = ps.predict(donnees["flux"], donnees["solde_actuel"], donnees["as_of"])
+    fig, slider = ps.figure_curseur(t)
+    slider.set_val(10)
+    assert slider.valtext.get_text() == "2026-10-10"
+    assert "2026-10-10" in [c.get_text().get_text() for c in fig.axes[1].tables[0].get_celld().values()]
+    plt.close(fig)
