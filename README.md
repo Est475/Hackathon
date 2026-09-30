@@ -60,6 +60,21 @@ t["esperance"], t["q05"], t["q25"], t["q50"], t["q75"], t["q95"], t["p_decouvert
 
 Depuis le CLI : `--npy timeline.npy`, puis `np.load("timeline.npy")`.
 
+### Version autonome en un seul fichier
+
+`predictor_standalone.py` reprend le même modèle dans un seul fichier (à copier dans un notebook,
+par exemple) ; sa seule sortie est la timeline en tableau numpy.
+
+```bash
+python predictor_standalone.py fixtures/sarah.json                     # affiche le tableau
+python predictor_standalone.py fixtures/sarah.json --out timeline.npy  # l'enregistre
+```
+
+```python
+from predictor_standalone import predict
+t = predict(flux, 800, "2026-09-30")   # mêmes colonnes que timeline_numpy()
+```
+
 ### Sortie
 
 `flux`, `evenements_prevus`, `timeline`, `grille_densite`, `resume`, `warnings`, plus `parametres` et

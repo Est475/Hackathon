@@ -241,3 +241,22 @@ def test_timeline_numpy(sortie, tmp_path):
     code = cli_main([str(FIXTURE), "--out", str(tmp_path / "o.json"), "--npy", str(npy), "-q"])
     assert code == 0
     assert np.array_equal(np.load(npy, allow_pickle=False), t)
+
+
+def test_standalone_identique_au_package(donnees, sortie, tmp_path):
+    import predictor_standalone as ps
+    from predictor import timeline_numpy
+
+    t = ps.predict(donnees["flux"], donnees["solde_actuel"], donnees["as_of"])
+    ref = timeline_numpy(sortie)
+    assert t.dtype.names == ref.dtype.names
+    assert np.array_equal(t["date"], ref["date"])
+    for c in ("esperance", "q05", "q25", "q50", "q75", "q95"):
+        assert np.allclose(t[c], ref[c], atol=0.006), c
+    assert np.allclose(t["p_decouvert"], ref["p_decouvert"], atol=5e-5)
+
+    npy = tmp_path / "t.npy"
+    assert ps.main([str(FIXTURE), "--out", str(npy)]) == 0
+    assert np.array_equal(np.load(npy, allow_pickle=False), t)
+    with pytest.raises(ValueError):
+        ps.predict([{"montant": float("nan"), "dates_apparition": ["2026-01-01"]}], 800, "2026-09-30")
