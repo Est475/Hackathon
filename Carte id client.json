@@ -1,0 +1,43 @@
+{
+  "client_id": "KBC-98765",
+  "informations_personnelles": {
+    "prenom": "Esteban",
+    "nom": "Debordes",
+    "date_naissance": "2006-04-12",
+    "nationalite": "Belge"
+  },
+  "profil_socio_professionnel": {
+    "statut": "Étudiant",
+    "domaine": "Ingénierie",
+    "etablissement": "Université catholique de Louvain (UCLouvain)",
+    "annee_etude": "BAC 1",
+    "revenus_mensuels_estimes": 1250.00
+  },
+  "coordonnees": {
+    "email": "esteban.debordes@student.uclouvain.be",
+    "telephone": "+32 470 12 34 56",
+    "adresses": {
+      "domicile_legal": "Braine-l'Alleud, Wallonie, Belgique",
+      "kot_etudiant": "Louvain-la-Neuve, Belgique"
+    }
+  },
+  "comptes_bancaires": [
+    {
+      "type_compte": "Courant",
+      "iban": "BE45 1234 5678 9012",
+      "devise": "EUR",
+      "plafond_decouvert_autorise": 0.00
+    },
+    {
+      "type_compte": "Epargne",
+      "iban": "BE45 9876 5432 1098",
+      "devise": "EUR",
+      "taux_interet": 1.20
+    }
+  ],
+  "preferences_ia_kbc": {
+    "ton_communication": "Direct et tutoiement",
+    "canal_prefere": "Notification Push Application Mobile",
+    "accepte_analyse_predictive": true
+  }
+}

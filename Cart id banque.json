@@ -1,0 +1,62 @@
+{
+  "catalogue_services_kbc": [
+    {
+      "categorie": "Gestion des liquidités",
+      "services": [
+        {
+          "id_service": "SRV-LIQ-001",
+          "nom": "Virement d'appoint intelligent",
+          "description": "Transfère automatiquement le montant exact manquant depuis le compte d'épargne vers le compte courant pour éviter un solde négatif.",
+          "conditions_eligibilite": {
+            "solde_epargne_minimum_requis": true,
+            "frais_activation": 0.00
+          },
+          "action_systeme": "execute_transfert_interne"
+        },
+        {
+          "id_service": "SRV-LIQ-002",
+          "nom": "Facilité de caisse temporaire (Profil Étudiant)",
+          "description": "Autorisation de découvert temporaire sans agios pour faire face à un imprévu de fin de mois.",
+          "conditions_eligibilite": {
+            "statut_requis": "Étudiant",
+            "montant_maximum": 500.00,
+            "duree_max_jours": 15,
+            "taux_interet": 0.00
+          },
+          "action_systeme": "update_plafond_decouvert"
+        }
+      ]
+    },
+    {
+      "categorie": "Crédit et Financement",
+      "services": [
+        {
+          "id_service": "SRV-CRE-001",
+          "nom": "Flexi-Pay (Étalement de facture)",
+          "description": "Permet de fractionner une dépense récente importante en 3 mensualités.",
+          "conditions_eligibilite": {
+            "montant_transaction_minimum": 150.00,
+            "type_transaction_exclu": ["Retrait", "Virement"],
+            "frais_dossier": 0.00
+          },
+          "action_systeme": "convert_transaction_to_loan"
+        }
+      ]
+    },
+    {
+      "categorie": "Assurances",
+      "services": [
+        {
+          "id_service": "SRV-ASS-001",
+          "nom": "Assurance Matériel Informatique & Électronique",
+          "description": "Couvre le vol, la casse et l'oxydation du matériel High-Tech (PC, composants, smartphones).",
+          "conditions_eligibilite": {
+            "detection_achat_technologique": true,
+            "prime_mensuelle": 5.99
+          },
+          "action_systeme": "propose_souscription_assurance"
+        }
+      ]
+    }
+  ]
+}
