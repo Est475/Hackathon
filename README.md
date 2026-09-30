@@ -1,5 +1,18 @@
 # Hackathon — Tectonic / défi KBC
 
+## Chaîne complète
+
+```bash
+# 1. regrouper les transactions par marchand avec Gemini (clé dans l'environnement, jamais dans le code)
+export GEMINI_API_KEY=...            # ou GOOGLE_CLOUD_PROJECT + GOOGLE_ACCESS_TOKEN, voir donnees_ia.py
+python donnees_ia.py "exemple flux.json" --out flux_agreges.json
+# 2. prédire le solde
+python predictor_standalone.py flux_agreges.json --solde 1000 --as-of 2026-09-30 --curseur
+```
+
+`donnees_ia.py` vérifie que la réponse de l'IA est un JSON valide et exploitable par le predictor avant
+de l'écrire. Modèle par défaut : `gemini-3.5-flash` (modifiable avec `GEMINI_MODEL` ou `--modele`).
+
 ## Module de prédiction (`predictor/`)
 
 À partir des flux agrégés par marchand (produits par l'amont), du solde actuel et d'une date de
